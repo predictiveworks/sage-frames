@@ -19,12 +19,10 @@ package de.kp.works.sage.api
  *
  */
 
-import com.google.gson.{JsonElement, JsonObject}
+import com.google.gson.JsonObject
 import de.kp.works.sage.conf.SageConf
 import de.kp.works.sage.http.HttpConnect
 import de.kp.works.sage.logging.Logging
-import de.kp.works.sage.spark.Session
-import org.apache.spark.sql.DataFrame
 import org.openqa.selenium.By
 import org.openqa.selenium.support.ui.{ExpectedConditions, WebDriverWait}
 
@@ -73,11 +71,6 @@ object SageApi {
  * SageReader.
  */
 class SageApi extends HttpConnect with Logging {
-
-  private val session = Session.getSession
-
-  import session.implicits._
-
   /**
    * This Sage authentication endpoint returns
    * the authorization code that is needed to
@@ -290,7 +283,7 @@ class SageApi extends HttpConnect with Logging {
 
   }
 
-  private def refreshToken(clientId: String, clientSecret: String, refreshToken: String): AuthToken = {
+  def refreshToken(clientId: String, clientSecret: String, refreshToken: String): AuthToken = {
 
     val endpoint = authTokenUrl
     val headers = Map.empty[String, String]
@@ -329,23 +322,21 @@ class SageApi extends HttpConnect with Logging {
   }
 
   /**
-   * This method performs the Http `GET` request to the Sage endpoint
-   * and transforms the result into an Apache Spark (raw) DataFrame.
-   *
-   * Note, requests are controlled by query parameters, `items_per_page`
-   * and `page`.
+   * This method performs a paginated Http `GET` request
+   * to the Sage endpoint. It is controlled by the query
+   * parameters, `items_per_page` and `page`.
    *
    * In case of a paginated request, the response slightly differs from
    * the API reference documentation.
    */
-  def getRequest(endpoint: String, headers: Map[String, String] = Map.empty[String, String]): DataFrame = {
+  def getPageRequest(endpoint: String, headers: Map[String, String] = Map.empty[String, String]): (Int, Seq[String]) = {
 
     try {
 
       val bytes = get(endpoint, headers)
       val json = extractJsonBody(bytes)
 
-      if (json == null) session.emptyDataFrame
+      if (json == null) (0, Seq.empty[String])
       else {
         /*
          * Pagination sample: GET sales_quotes?page=2&items_per_page=25
@@ -367,7 +358,15 @@ class SageApi extends HttpConnect with Logging {
          *    ]
          * }
          */
-        json2DataFrame(json)
+        val jsonObj = json.getAsJsonObject
+        val total = jsonObj.get("$total").getAsInt
+
+        val items = jsonObj.get("$items").getAsJsonArray
+          .map(e => e.toString)
+          .toSeq
+
+        (total, items)
+
       }
 
     } catch {
@@ -381,37 +380,6 @@ class SageApi extends HttpConnect with Logging {
   }
 
   def putRequest(): Unit = {
-
-  }
-
-  private def json2DataFrame(json: JsonElement): DataFrame = {
-
-    val seq = if (json.isJsonArray) {
-      /*
-       * Transform response JSON array into a dataset
-       * that is transformed afterwards into a `DataFrame`
-       */
-      json.getAsJsonArray.map(e => e.toString).toSeq
-
-    } else if (json.isJsonObject) {
-      /*
-       * Transform response JSON object into a dataset
-       * that is transformed afterwards into a `DataFrame`
-       */
-      json.toString :: Nil
-
-    } else
-      Seq.empty[String]
-
-    if (seq.isEmpty) session.emptyDataFrame
-    else {
-
-      val dataset = session.createDataset(seq)
-      val dataframe = session.read.json(dataset)
-
-      dataframe
-
-    }
 
   }
 }
