@@ -326,6 +326,37 @@ class SageApi extends HttpConnect with Logging {
 
   }
 
+  def getRequest(endpoint: String, headers: Map[String, String], responseType:String): Seq[String] = {
+
+    try {
+
+      val bytes = get(endpoint, headers)
+      val json = extractJsonBody(bytes)
+
+      if (responseType == "object") {
+
+        if (!json.isJsonObject)
+          throw new Exception(s"Response does not match type `$responseType`.")
+
+        Seq(json.toString)
+
+      } else if (responseType == "array") {
+
+        if (!json.isJsonArray)
+          throw new Exception(s"Response does not match type `$responseType`.")
+
+        json.getAsJsonArray.map(e => e.toString).toSeq
+
+      } else
+        throw new Exception(s"Unknown response type `$responseType` detected.")
+
+    } catch {
+      case t: Throwable =>
+        error(s"GET for `$endpoint` failed: ${t.getLocalizedMessage}")
+        Seq.empty[String]
+    }
+
+  }
   /**
    * This method performs a paginated Http `GET` request
    * to the Sage endpoint. It is controlled by the query
@@ -334,7 +365,7 @@ class SageApi extends HttpConnect with Logging {
    * In case of a paginated request, the response slightly differs from
    * the API reference documentation.
    */
-  def getPageRequest(endpoint: String, headers: Map[String, String] = Map.empty[String, String]): (Int, Seq[String]) = {
+  def getPageRequest(endpoint: String, headers: Map[String, String]): (Int, Seq[String]) = {
 
     try {
 
@@ -375,16 +406,12 @@ class SageApi extends HttpConnect with Logging {
       }
 
     } catch {
-      case t: Throwable => throw t
+      case t: Throwable =>
+        error(s"Paged GET for `$endpoint` failed: ${t.getLocalizedMessage}")
+        (0, Seq.empty[String])
+
     }
 
   }
 
-  def postRequest(): Unit = {
-
-  }
-
-  def putRequest(): Unit = {
-
-  }
 }

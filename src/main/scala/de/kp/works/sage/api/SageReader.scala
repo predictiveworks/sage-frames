@@ -1,12 +1,28 @@
 package de.kp.works.sage.api
 
-import com.google.gson.JsonElement
+/**
+ * Copyright (c) 2019 - 2022 Dr. Krusche & Partner PartG. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ *
+ * @author Stefan Krusche, Dr. Krusche & Partner PartG
+ *
+ */
+
 import de.kp.works.sage.logging.Logging
 import de.kp.works.sage.spark.Session
-import de.kp.works.sage.swagger.Paths
+import de.kp.works.sage.swagger.{Paths, SagePath}
 import org.apache.spark.sql.DataFrame
-
-import scala.collection.JavaConversions.iterableAsScalaIterable
 
 object SageReader {
 
@@ -21,15 +37,21 @@ object SageReader {
 }
 
 class SageReader(accessToken:String) extends Logging {
-
+  /**
+   * Reference to the Sage HTTP API
+   */
+  private val sageApi = new SageApi()
+  /**
+   * Spark session to enable the use of DataFrames
+   */
   private val session = Session.getSession
   import session.implicits._
-  /*+
+  /**
    * The number of items returned with a page request
    * is set to 200. This is a fixed value and cannot
    * be changed
    */
-  val itemsPerPage = s"items_per_page=200"
+  private val itemsPerPage = s"items_per_page=200"
 
   def read(path:String, params:Map[String, Any]):DataFrame = {
 
@@ -114,7 +136,7 @@ class SageReader(accessToken:String) extends Logging {
          * is a paging request or not, and access Sage API.
          */
         val paging = lookup.contains("items_per_page") || lookup.contains("page")
-        if (paging) doPageGet(endpoint) else doGet(endpoint)
+        if (paging) doPageGet(endpoint, readPath.get) else doGet(endpoint, readPath.get)
 
       } else {
         warn(s"The provided endpoint `$path` is not supported.")
@@ -129,21 +151,83 @@ class SageReader(accessToken:String) extends Logging {
 
   }
 
-  private def doGet(endpoint:String):DataFrame = {
+  private def doGet(endpoint:String, sagePath:SagePath):DataFrame = {
 
     info(s"Perform GET for `$endpoint`.")
-    ???
+
+    val headers = getHeaders
+    val responseType = sagePath.schemaType
+
+    val rows = sageApi.getRequest(endpoint, headers, responseType)
+    /*
+     * Transform the final result into a `DataFrame`
+     * to ease Spark based data computing
+     */
+    if (rows.isEmpty) session.emptyDataFrame
+    else {
+      val dataset = session.createDataset(rows)
+      session.read.json(dataset)
+
+    }
+
   }
 
-  private def doPageGet(endpoint:String):DataFrame = {
-
+  private def doPageGet(endpoint:String, sagePath:SagePath):DataFrame = {
+    /*
+     * Paging requests expect that the Sage API always returns
+     * an `array`; therefore, there is no explicit need to evaluate
+     * the associated `sagePath`.
+     */
     info(s"Perform paged GET for `$endpoint`.")
+    /*
+     */
+    var nextPage = 1
     /*
      * The current implementation leverages the maximum
      * items per page as specified by the Sage API.
      */
-    var requestUrl = endpoint + "&" + itemsPerPage
-    ???
+    val requestUrl = endpoint + "&" + itemsPerPage
+
+    var rows = Seq.empty[String]
+    val headers = getHeaders
+    /*
+     * The current implementation takes the number of
+     * returned items as a decision criteria whether
+     * to continue requesting the API or not
+     */
+    var hasNext = true
+    while (hasNext) {
+      /*
+       * Access Sage API with the current paging
+       */
+      val nextPageUrl = requestUrl + "&page=" + nextPage
+      val (_, items) = sageApi.getPageRequest(nextPageUrl, headers)
+      /*
+       * Register the retrieved items and and
+       * determine whether to invoke the next
+       * request
+       */
+      rows = rows ++ items
+      if (items.size < 200)
+        hasNext = false
+
+      else
+        nextPage += 1
+
+      Thread.sleep(200)
+
+    }
+    /*
+     * Transform the final result into a `DataFrame`
+     * to ease Spark based data computing
+     */
+    if (rows.isEmpty) session.emptyDataFrame
+    else {
+      val dataset = session.createDataset(rows)
+      session.read.json(dataset)
+
+    }
+
   }
   /**
    * A helper method to assign the provided
@@ -152,37 +236,6 @@ class SageReader(accessToken:String) extends Logging {
   private def getHeaders:Map[String,String] = {
     val headers = Map("Authorization" -> s"Bearer $accessToken")
     headers
-  }
-
-  private def json2DataFrame(json: JsonElement): DataFrame = {
-
-    val seq = if (json.isJsonArray) {
-      /*
-       * Transform response JSON array into a dataset
-       * that is transformed afterwards into a `DataFrame`
-       */
-      json.getAsJsonArray.map(e => e.toString).toSeq
-
-    } else if (json.isJsonObject) {
-      /*
-       * Transform response JSON object into a dataset
-       * that is transformed afterwards into a `DataFrame`
-       */
-      json.toString :: Nil
-
-    } else
-      Seq.empty[String]
-
-    if (seq.isEmpty) session.emptyDataFrame
-    else {
-
-      val dataset = session.createDataset(seq)
-      val dataframe = session.read.json(dataset)
-
-      dataframe
-
-    }
-
   }
 
 }

@@ -88,7 +88,7 @@ object SageLogger {
     logFilePolicy.setContext(logCtx)
 
     logFilePolicy.setParent(logFileAppender)
-    logFilePolicy.setFileNamePattern(s"${getFolder}things.%d{yyyy-MM-dd}.%i.log")
+    logFilePolicy.setFileNamePattern(s"${getFolder}sage.%d{yyyy-MM-dd}.%i.log")
 
     logFilePolicy.setMaxFileSize(FileSize.valueOf("100mb"))
     logFilePolicy.setTotalSizeCap(FileSize.valueOf("3GB"))
