@@ -29,14 +29,14 @@ object SageReader {
   def main(args:Array[String]):Unit = {
 
     val endpoint = "/purchase_invoices"
-    val reader = new SageReader("")
+    val reader = new SageReader()
 
     reader.read(endpoint, Map.empty[String,Any])
 
   }
 }
 
-class SageReader(accessToken:String) extends Logging {
+class SageReader extends Logging {
   /**
    * Reference to the Sage HTTP API
    */
@@ -136,7 +136,7 @@ class SageReader(accessToken:String) extends Logging {
          * is a paging request or not, and access Sage API.
          */
         val paging = lookup.contains("items_per_page") || lookup.contains("page")
-        if (paging) doPageGet(endpoint, readPath.get) else doGet(endpoint, readPath.get)
+        if (paging) doPageGet(endpoint) else doGet(endpoint, readPath.get)
 
       } else {
         warn(s"The provided endpoint `$path` is not supported.")
@@ -156,8 +156,10 @@ class SageReader(accessToken:String) extends Logging {
     info(s"Perform GET for `$endpoint`.")
 
     val headers = getHeaders
-    val responseType = sagePath.schemaType
+    if (headers.isEmpty)
+      throw new Exception(s"Request cannot be authenticated.")
 
+    val responseType = sagePath.schemaType
     val rows = sageApi.getRequest(endpoint, headers, responseType)
     /*
      * Transform the final result into a `DataFrame`
@@ -172,15 +174,18 @@ class SageReader(accessToken:String) extends Logging {
 
   }
 
-  private def doPageGet(endpoint:String, sagePath:SagePath):DataFrame = {
+  private def doPageGet(endpoint:String):DataFrame = {
     /*
      * Paging requests expect that the Sage API always returns
      * an `array`; therefore, there is no explicit need to evaluate
      * the associated `sagePath`.
      */
     info(s"Perform paged GET for `$endpoint`.")
-    /*
-     */
+
+    val headers = getHeaders
+    if (headers.isEmpty)
+      throw new Exception(s"Request cannot be authenticated.")
+
     var nextPage = 1
     /*
      * The current implementation leverages the maximum
@@ -189,7 +194,6 @@ class SageReader(accessToken:String) extends Logging {
     val requestUrl = endpoint + "&" + itemsPerPage
 
     var rows = Seq.empty[String]
-    val headers = getHeaders
     /*
      * The current implementation takes the number of
      * returned items as a decision criteria whether
@@ -230,12 +234,24 @@ class SageReader(accessToken:String) extends Logging {
 
   }
   /**
-   * A helper method to assign the provided
+   * A helper method to assign the available
    * `accessToken` to the request header.
+   *
+   * This method is backed by SageAuth, which
+   * dynamically retrieves the actual access
+   * token.
    */
   private def getHeaders:Map[String,String] = {
-    val headers = Map("Authorization" -> s"Bearer $accessToken")
-    headers
+
+    val accessToken = SageAuth.getAccessToken
+    if (accessToken.isEmpty)
+      Map.empty[String,String]
+
+    else {
+      val headers = Map("Authorization" -> s"Bearer ${accessToken.get}")
+      headers
+
+    }
   }
 
 }

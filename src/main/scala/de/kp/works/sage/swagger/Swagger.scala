@@ -13,7 +13,9 @@ trait Swagger {
 
   def file2Json:JsonObject = {
 
-    val source = Source.fromFile("src/main/resources/swagger.full.json")
+    val resource = getClass.getResource("/swagger.full.json")
+
+    val source = Source.fromFile(resource.getFile)
     val lines = source.getLines
 
     val str = lines.mkString

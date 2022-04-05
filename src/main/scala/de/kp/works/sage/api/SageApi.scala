@@ -20,7 +20,6 @@ package de.kp.works.sage.api
  */
 
 import com.google.gson.JsonObject
-import de.kp.works.sage.conf.SageConf
 import de.kp.works.sage.http.HttpConnect
 import de.kp.works.sage.logging.Logging
 import org.openqa.selenium.By
@@ -36,36 +35,6 @@ case class AuthToken(
   refreshToken:String,
   refreshTokenExpiresIn: Int
 )
-
-object SageApi {
-
-  /**
-   * The internal configuration is used, if the current
-   * configuration is not set here
-   */
-  if (!SageConf.isInit) SageConf.init()
-
-  private val sageCfg = SageConf.getSageCfg
-
-  private val clientId = sageCfg.getString("clientId")
-  private val clientSecret = sageCfg.getString("clientSecret")
-
-  private val redirectUri =  sageCfg.getString("redirectUri")
-  private val api = new SageApi()
-
-  def main(args: Array[String]): Unit = {
-
-    api.getAuthCode(clientId, redirectUri)
-    System.exit(0)
-
-  }
-
-  def login():Option[AuthToken] = {
-    api.loginRequest(clientId, clientSecret, redirectUri)
-  }
-
-}
-
 /**
  * The `SageApi` provides a low-level access to the
  * Sage cloud platform and connects the result to
@@ -100,7 +69,7 @@ class SageApi extends HttpConnect with Logging {
   * state that was provided in the original request, it does not originate
   * from the original request and you must not continue.
   */
-  def loginRequest(clientId: String, clientSecret: String, redirectUri: String): Option[AuthToken] = {
+  def login(clientId: String, clientSecret: String, redirectUri: String): Option[AuthToken] = {
     /*
      * STEP #1: Retrieve the authorization code
      *
