@@ -30,6 +30,8 @@ object SageConf extends BaseConf {
 
   def getBindingCfg: Config = getCfg("binding")
 
+  def getHadoopCfg: Config = getCfg("hadoop")
+
   def getLoggingCfg: Config = getCfg("logging")
 
   def getSageCfg: Config = getCfg("sage")

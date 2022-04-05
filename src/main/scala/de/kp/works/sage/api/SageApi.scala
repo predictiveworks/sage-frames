@@ -51,14 +51,19 @@ object SageApi {
   private val clientSecret = sageCfg.getString("clientSecret")
 
   private val redirectUri =  sageCfg.getString("redirectUri")
+  private val api = new SageApi()
 
   def main(args: Array[String]): Unit = {
 
-    val api = new SageApi()
     api.getAuthCode(clientId, redirectUri)
-
     System.exit(0)
+
   }
+
+  def login():Option[AuthToken] = {
+    api.loginRequest(clientId, clientSecret, redirectUri)
+  }
+
 }
 
 /**

@@ -18,11 +18,19 @@ package de.kp.works.sage.spark
  * @author Stefan Krusche, Dr. Krusche & Partner PartG
  *
  */
-import org.apache.spark._
+import de.kp.works.sage.conf.SageConf
 import org.apache.spark.sql._
 
 object Session {
 
+  /**
+   * The internal configuration is used, if the current
+   * configuration is not set here
+   */
+  if (!SageConf.isInit) SageConf.init()
+  private val hadoopCfg = SageConf.getHadoopCfg
+
+  System.setProperty("hadoop.home.dir", hadoopCfg.getString("folder"))
   private var session:Option[SparkSession] = None
   /**
    * The SparkSession is built without using the respective
@@ -31,20 +39,20 @@ object Session {
    */
   def initialize():Unit = {
 
-    val conf = new SparkConf()
-      .setAppName("SageFrames")
-      .setMaster("local[4]")
+    val spark = SparkSession
+      .builder()
+      .appName("SageFrames")
+      .master("local[*]")
       /*
-       * Driver & executor configuration
+       * The Spark Web UI leverages Netty and the
+       * respective version is in conflict with
+       * Selenium
        */
-      .set("spark.driver.maxResultSize", "4g")
-      .set("spark.driver.memory"       , "12g")
-      .set("spark.executor.memory"     , "12g")
+      .config("spark.ui.enabled", "false")
+      .getOrCreate()
 
-    val sparkContext = new SparkContext(conf)
-    session = Some(new SQLContext(sparkContext).sparkSession)
-
-    session.get.sparkContext.setLogLevel("ERROR")
+    spark.sparkContext.setLogLevel("ERROR")
+    session = Some(spark)
 
   }
 

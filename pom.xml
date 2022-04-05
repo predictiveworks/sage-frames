@@ -27,12 +27,7 @@
         in 2.11.12
         -->
         <scala.binary.version>2.11</scala.binary.version>
-        <!--
-        Google's Spark BigQuery connector requires version 2.4+
-        but there are a variety of incompatibilities with libraries
-        used by the connector.
-        -->
-        <spark.version>2.4.7</spark.version>
+        <spark.version>2.4.8</spark.version>
 
     </properties>
 
@@ -88,7 +83,19 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_${scala.binary.version}</artifactId>
             <version>${spark.version}</version>
-         </dependency>
+            <!--
+            <exclusions>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-all</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty</artifactId>
+                </exclusion>
+            </exclusions>
+            -->
+        </dependency>
 
     </dependencies>
 
