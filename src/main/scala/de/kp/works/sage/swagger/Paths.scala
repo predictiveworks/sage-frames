@@ -84,6 +84,8 @@ object Paths extends Swagger {
     .filter(path => writes.contains(path.method))
 
   def getPaths: Seq[SagePath] = paths
+
+  def getReadPaths: Seq[SagePath] = readPaths
   /**
    * Public method to retrieve the Sage read `path`
    * specification that refers to a certain endpoint
@@ -92,6 +94,8 @@ object Paths extends Swagger {
     val filtered = readPaths.filter(path => path.endpoint == endpoint)
     filtered.headOption
   }
+
+  def getWritePaths: Seq[SagePath] = writePaths
   /**
    * Public method to retrieve the Sage write `path`
    * specifications that refers to a certain endpoint
