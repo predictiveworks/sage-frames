@@ -18,10 +18,13 @@ package de.kp.works.sage.spark
  * @author Stefan Krusche, Dr. Krusche & Partner PartG
  *
  */
+import ch.qos.logback.classic.Level
 import de.kp.works.sage.conf.SageConf
+import de.kp.works.sage.logging.Logging
 import org.apache.spark.sql._
+import org.slf4j.LoggerFactory
 
-object Session {
+object Session extends Logging {
 
   /**
    * The internal configuration is used, if the current
@@ -38,6 +41,27 @@ object Session {
    * Analytics-Zoo additional context with ease.
    */
   def initialize():Unit = {
+    /*
+     * Set log levels for Apache Spark console output programmatically.
+     * Steps taken prior to the following ones
+     *
+     * - Exclude log4j support from Apache Spark (see pom.xml)
+     * - Redirect log4j to slf4j
+     * - Set logback
+     */
+    val entries = Seq(
+      "io.netty",
+      "org.apache.hadoop",
+      "org.apache.spark",
+      "org.spark_project")
+
+    entries.foreach(entry => {
+      val logger = LoggerFactory
+        .getLogger(entry).asInstanceOf[ch.qos.logback.classic.Logger]
+
+      logger.setLevel(Level.WARN)
+
+    })
 
     val spark = SparkSession
       .builder()

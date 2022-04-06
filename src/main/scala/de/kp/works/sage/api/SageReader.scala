@@ -22,7 +22,9 @@ package de.kp.works.sage.api
 import de.kp.works.sage.logging.Logging
 import de.kp.works.sage.spark.Session
 import de.kp.works.sage.swagger.{Paths, SagePath}
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.{Column, DataFrame}
+import org.apache.spark.sql.types.StructType
 
 object SageReader {
 
@@ -52,6 +54,24 @@ class SageReader extends Logging {
    * be changed
    */
   private val itemsPerPage = s"items_per_page=200"
+
+  def flatten(input:DataFrame):DataFrame = {
+
+    def flatten_schema(schema: StructType, prefix: String = null) : Array[Column] = {
+      schema.fields.flatMap(f => {
+        val columnName = if (prefix == null) f.name else (prefix + "." + f.name)
+
+        f.dataType match {
+          case st: StructType => flatten_schema(st, columnName)
+          case _ => Array(col(columnName).as(columnName.replace(".","_")))
+        }
+      })
+    }
+
+    val output = input.select(flatten_schema(input.schema): _*)
+    output
+
+  }
 
   def read(path:String, params:Map[String, Any]):DataFrame = {
 

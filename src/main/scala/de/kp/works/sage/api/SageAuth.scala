@@ -220,7 +220,7 @@ object SageAuth extends Logging {
       jsonElem
 
     } catch {
-      case _: Throwable => JsonNull
+      case _: Throwable => JsonNull.INSTANCE
     }
 
   }
