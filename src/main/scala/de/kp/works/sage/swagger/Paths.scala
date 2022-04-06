@@ -155,14 +155,8 @@ object Paths extends Swagger {
           val schema = responses.get(code).getAsJsonObject
             .get("schema").getAsJsonObject
 
-          var schemaName = ""
-          var schemaType = ""
-
-          if (schema.has("$ref")) {
-            schemaName = getRefName(schema)
-            schemaType = "object"
-
-          }
+          val Seq(schemaName, schemaType) =
+            extractSchemaNameAndType(schema)
 
           sagePaths += SagePath(
             endpoint = endpoint, method = "get", schemaName, schemaType, parameters)
@@ -184,14 +178,8 @@ object Paths extends Swagger {
           val schema = responses.get(code).getAsJsonObject
             .get("schema").getAsJsonObject
 
-          var schemaName = ""
-          var schemaType = ""
-
-          if (schema.has("$ref")) {
-            schemaName = getRefName(schema)
-            schemaType = "object"
-
-          }
+          val Seq(schemaName, schemaType) =
+            extractSchemaNameAndType(schema)
 
           sagePaths += SagePath(
             endpoint = endpoint, method = "post", schemaName, schemaType, parameters)
@@ -213,14 +201,8 @@ object Paths extends Swagger {
           val schema = responses.get(code).getAsJsonObject
             .get("schema").getAsJsonObject
 
-          var schemaName = ""
-          var schemaType = ""
-
-          if (schema.has("$ref")) {
-            schemaName = getRefName(schema)
-            schemaType = "object"
-
-          }
+          val Seq(schemaName, schemaType) =
+            extractSchemaNameAndType(schema)
 
           sagePaths += SagePath(
             endpoint = endpoint, method = "put", schemaName, schemaType, parameters)
@@ -272,6 +254,31 @@ object Paths extends Swagger {
 
   }
 
+  def extractSchemaNameAndType(schema:JsonObject):Seq[String] = {
+
+    if (schema.has("$ref")) {
+      val schemaName = getRefName(schema)
+      val schemaType = "object"
+
+      Seq(schemaName, schemaType)
+    }
+    else {
+
+      val schemaType = schema.get("type").getAsString
+      var schemaName = ""
+
+      if (schemaType == "array") {
+        if (schema.has("items")) {
+          schemaName = getRefName(schema.get("items").getAsJsonObject)
+        }
+
+      }
+
+      Seq(schemaName, schemaType)
+
+    }
+
+  }
   def getJsonRequest(path:JsonObject, method:String):JsonObject = {
 
     val request = path.get(method).getAsJsonObject
