@@ -54,12 +54,19 @@ class SageReader extends Logging {
    * be changed
    */
   private val itemsPerPage = s"items_per_page=200"
+  /**
+   * Prepare dataset mapping to turn a provided dataset
+   * name into the respective API endpoint
+   */
+  private val datasetMapper = Paths.getReadPaths
+    .map(path => (path.schemaName, path.endpoint))
+    .toMap
 
   def flatten(input:DataFrame):DataFrame = {
 
     def flatten_schema(schema: StructType, prefix: String = null) : Array[Column] = {
       schema.fields.flatMap(f => {
-        val columnName = if (prefix == null) f.name else (prefix + "." + f.name)
+        val columnName = if (prefix == null) f.name else prefix + "." + f.name
 
         f.dataType match {
           case st: StructType => flatten_schema(st, columnName)
@@ -73,12 +80,14 @@ class SageReader extends Logging {
 
   }
 
-  def read(path:String, params:Map[String, Any]):DataFrame = {
+  def read(dataset:String, params:Map[String, Any]):DataFrame = {
 
     try {
+
+      val path = datasetMapper(dataset)
       /*
        * STEP #1: Retrieve Swagger based definition of the
-       * provided path
+       * computed path
        */
       val readPath = Paths.getReadPath(path)
       if (readPath.nonEmpty) {
@@ -165,7 +174,7 @@ class SageReader extends Logging {
 
     } catch {
       case t:Throwable =>
-        error(s"Reading from endpoint `$path` failed: ${t.getMessage}")
+        error(s"Reading from dataset `$dataset` failed: ${t.getMessage}")
         session.emptyDataFrame
     }
 
