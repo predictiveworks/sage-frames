@@ -172,8 +172,6 @@ trait HttpConnect {
       val future: Future[HttpResponse] = Http(httpSystem).singleRequest(request)
       val response = Await.result(future, duration)
 
-      println(response)
-
       val status = response.status
       if (status == StatusCodes.OK)
         return response.entity.withoutSizeLimit().dataBytes
